@@ -14,24 +14,35 @@ library(lubridate)
 
 Import the July 2019 dataset
 ```{r}
-bikes_july19 <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/201907-capitalbikeshare-tripdata.csv")
+bikes_june19 <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/201906-capitalbikeshare-tripdata.csv")
 ```
 
 
 Use some lubridate functions for compatibility
 ```{r}
-bikes_july19$hour <- hour(bikes_july19$Start.date)
-bikes_july19$weekday <- weekdays(as.Date(bikes_july19$Start.date))
-bikes_july19$month <- month(bikes_july19$Start.date)
-bikes_july19$day <-  day(bikes_july19$Start.date)
+bikes_june19$hour <- hour(bikes_june19$Start.date)
+bikes_june19$weekday <- weekdays(as.Date(bikes_june19$Start.date))
+bikes_june19$month <- month(bikes_june19$Start.date)
+bikes_june19$day <-  day(bikes_june19$Start.date)
 ```
+
+Create a column that tells if the bike starts at the same station it ended
+```{r}
+bikes_june19 <- bikes_june19 %>% 
+  arrange(Bike.number, Start.date) %>% 
+  group_by(Bike.number) %>% 
+  mutate(start.equals.end = ifelse(Start.station.number == lag(End.station.number),1,0))
+
+```
+
+
 
 Create summarised data by hour, day, month, and station (potentially this will have year.) I will be creating the number of starts and ends. I think this could also be for intervals of 5, 10, 15, 20, or 30 minutes - we should test this.
 ```{r}
-bikes_test <- bikes_july19 %>% 
+bikes_test <- bikes_june19 %>% 
   group_by(hour, day, month, Start.station.number) %>% 
   tally(name = "Starts") %>% 
-  left_join(bikes_july19 %>% 
+  left_join(bikes_june19 %>% 
   group_by(hour, day, month, End.station.number) %>% 
   tally(name = "Ends"),
   by = c("hour", "day", "month", "Start.station.number" = "End.station.number"))
@@ -52,7 +63,7 @@ stations_info <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/D
 
 
 ```{r}
-bikes_july19 <- bikes_july19 %>% 
+bikes_june19 <- bikes_june19 %>% 
   left_join(stations_info, by = c("Start.station" = "NAME"))
 ```
 Plot of one of the most used stations. This Station is Henry Bacon Dr & Lincoln Memorial Circle NW, which happens to be besides the lincoln memorial. This appears to be a more touristy bike station with trips starting almost uniformly through the day. 
@@ -96,7 +107,7 @@ Now, to test how much demand for bikes there is, I propose dividing the (starts-
 
 ```{r}
 bikes_test <- bikes_test %>% 
-  left_join(bikes_july19 %>% 
+  left_join(bikes_june19 %>% 
               select(Start.station.number, Start.station) %>% 
               distinct(Start.station.number, Start.station, .keep_all = TRUE),
             by = "Start.station.number") %>% 

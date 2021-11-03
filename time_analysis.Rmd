@@ -1,0 +1,111 @@
+---
+title: "bikes_station_dynamics"
+author: "Stefano Molina"
+date: "10/28/2021"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(lubridate)
+```
+
+Import the July 2019 dataset
+```{r}
+bikes_july19 <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/201907-capitalbikeshare-tripdata.csv")
+```
+
+
+Use some lubridate functions for compatibility
+```{r}
+bikes_july19$hour <- hour(bikes_july19$Start.date)
+bikes_july19$weekday <- weekdays(as.Date(bikes_july19$Start.date))
+bikes_july19$month <- month(bikes_july19$Start.date)
+bikes_july19$day <-  day(bikes_july19$Start.date)
+```
+
+Create summarised data by hour, day, month, and station (potentially this will have year.) I will be creating the number of starts and ends. I think this could also be for intervals of 5, 10, 15, 20, or 30 minutes - we should test this.
+```{r}
+bikes_test <- bikes_july19 %>% 
+  group_by(hour, day, month, Start.station.number) %>% 
+  tally(name = "Starts") %>% 
+  left_join(bikes_july19 %>% 
+  group_by(hour, day, month, End.station.number) %>% 
+  tally(name = "Ends"),
+  by = c("hour", "day", "month", "Start.station.number" = "End.station.number"))
+
+bikes_test$Ends <- ifelse(is.na(bikes_test$Ends), 0, bikes_test$Ends)
+bikes_test$Starts <- ifelse(is.na(bikes_test$Starts), 0, bikes_test$Starts)
+
+bikes_test$date <- ymd(paste0("2019/", bikes_test$month, "/", bikes_test$day))
+bikes_test$time <- hm(paste0(bikes_test$hour, ":00"))
+```
+
+
+Importing the stations information file to add the number of slots at each station. This is not used yet
+
+```{r}
+stations_info <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/Capital_Bike_Share_Locations.csv")
+```
+
+
+```{r}
+bikes_july19 <- bikes_july19 %>% 
+  left_join(stations_info, by = c("Start.station" = "NAME"))
+```
+Plot of one of the most used stations. This Station is Henry Bacon Dr & Lincoln Memorial Circle NW, which happens to be besides the lincoln memorial. This appears to be a more touristy bike station with trips starting almost uniformly through the day. 
+```{r}
+bikes_test %>% 
+  filter(Start.station.number == 31289) %>% 
+  ggplot() +
+  geom_boxplot(aes(as.factor(hour), Starts))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90))
+
+bikes_test %>% 
+  filter(Start.station.number == 31289) %>% 
+  ggplot() +
+  geom_boxplot(aes(as.factor(hour), Ends))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90))
+  
+```
+
+
+This other station is Columbus Circle / Union Station, which is located just outside of the Amtrak Station. I would think this is a motsly commuter station just at looking at the times the trips start and end.
+```{r}
+bikes_test %>% 
+  filter(Start.station.number == 31623) %>% 
+  ggplot() +
+  geom_boxplot(aes(as.factor(hour), Starts))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90))
+
+bikes_test %>% 
+  filter(Start.station.number == 31623) %>% 
+  ggplot() +
+  geom_boxplot(aes(as.factor(hour), Ends))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90))
+  
+```
+
+Now, to test how much demand for bikes there is, I propose dividing the (starts-ends)/available slots
+
+```{r}
+bikes_test <- bikes_test %>% 
+  left_join(bikes_july19 %>% 
+              select(Start.station.number, Start.station) %>% 
+              distinct(Start.station.number, Start.station, .keep_all = TRUE),
+            by = "Start.station.number") %>% 
+  left_join(stations_info %>% 
+              select(NAME, NUM_DOCKS_AVAILABLE),
+            by = c("Start.station" = "NAME"))
+
+bikes_test$demand <- (bikes_test$Starts-bikes_test$Ends)/bikes_test$NUM_DOCKS_AVAILABLE
+```
+
+
+

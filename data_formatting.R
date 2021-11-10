@@ -97,29 +97,29 @@ bikes_june19 <- bikes_june19 %>%
 #the number of trips ending and starting at each station for month, day and houris calculated
 bikes_summary <- bikes_june19 %>% 
   filter(Start.station.number !=0 & End.station.number !=0) %>% 
-  group_by(Station = Start.station.number,  month, day, hour) %>% 
+  group_by(Station = Start.station.number, Station.name = Start.station, month, day, hour) %>% 
   summarise(n.starts = n()) %>% 
   full_join(bikes_june19 %>% 
               filter(End.station.number !=0 & Start.station.number !=0) %>% 
-              group_by(Station = End.station.number,  month, day, hour) %>% 
+              group_by(Station = End.station.number, Station.name = Start.station,  month, day, hour) %>% 
               summarise(n.ends = n()),
-            by = c("Station", "month", "day", "hour"))
+            by = c("Station","Station.name", "month", "day", "hour"))
 
 #the number of bikes taken by van at each station for month, day and houris calculated
 bikes_van_summary <- bikes_june19 %>% 
   filter(Start.station.number !=0 & End.station.number ==0) %>% 
-  group_by(Station = Start.station.number,  month, day, hour) %>% 
+  group_by(Station = Start.station.number, Station.name = Start.station,  month, day, hour) %>% 
   summarise(n.to.van = n()) %>% 
   full_join(bikes_june19 %>% 
               filter(End.station.number !=0 & Start.station.number ==0) %>% 
-              group_by(Station = End.station.number,  month, day, hour) %>% 
+              group_by(Station = End.station.number, Station.name = Start.station, month, day, hour) %>% 
               summarise(n.from.van = n()),
-            by = c("Station", "month", "day", "hour"))
+            by = c("Station","Station.name", "month", "day", "hour"))
 
 #the two former data sets are joined 
 bikes_summary <- bikes_summary %>% 
   full_join(bikes_van_summary,
-             by = c("Station", "month", "day", "hour"))
+             by = c("Station", "Station.name", "month", "day", "hour"))
 
 #the activity for each station is calculated,
 #this is the sum of total trips whether starting or ending there
@@ -171,6 +171,14 @@ bikes_summary$balance <- ifelse(bikes_summary$day == 0, bikes_summary$n, bikes_s
 bikes_summary <- bikes_summary %>% 
   group_by(Station) %>% 
   mutate(n = cumsum(balance))
+
+stations_info <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/Capital_Bike_Share_Locations.csv")
+
+
+bikes_summary <- bikes_summary %>% 
+  left_join(stations_info %>% 
+              select(NAME, CAPACITY),
+              by = c("Station" = "NAME"))
 
 write.csv(bikes_summary, 
           "/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/trips_summary.csv")

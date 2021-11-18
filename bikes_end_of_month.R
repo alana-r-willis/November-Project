@@ -35,9 +35,18 @@ bikes_end_of_month <- function(month_data, save = F){
   bikes_endofmonth$day <- 0
   bikes_endofmonth$hour <- 0
   
+<<<<<<< HEAD
+  names(bikes_endofmonth)[names(bikes_endofmonth) == "n"] <- "availability"
+  
+=======
+>>>>>>> f8af3be77fbcbdb1c50c8c42e4dcb9d8f9ed18cb
   if(save == T){
   filename <- paste0("bikes_end_of_", month.abb[month], year, ".csv")
   write.csv(bikes_endofmonth,
             paste0("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/", filename))}
+<<<<<<< HEAD
+  return(bikes_endofmonth)
+=======
+>>>>>>> f8af3be77fbcbdb1c50c8c42e4dcb9d8f9ed18cb
   
 }

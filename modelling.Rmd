@@ -38,6 +38,7 @@ dc_weather <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data
 dc_weather <- dc_weather[,-1]
 
 data$year <- year
+data$weekend <- ifelse(data$weekday %in% c("Saturday", "Sunday"), 1,0)
 data <- data %>% 
   left_join(dc_weather,
             by = c("year", "month", "day"))

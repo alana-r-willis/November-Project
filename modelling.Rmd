@@ -1,0 +1,100 @@
+---
+title: "model"
+author: "Stefano Molina"
+date: "11/21/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidymodels)
+library(dplyr)
+library(data.table)
+library(lubridate)
+library(tidyverse)
+```
+
+
+```{r}
+month <- 6
+year <- 2019
+data <- read.csv(paste0("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/Processed/Filtered/trips_summary_filtered",
+                        month, 
+                        year, 
+                        ".csv")) %>% 
+  bind_rows(read.csv(paste0("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/Processed/Filtered/trips_summary_filtered",
+                        month+1, 
+                        year, 
+                        ".csv")))%>% 
+  bind_rows(read.csv(paste0("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/Processed/Filtered/trips_summary_filtered",
+                        month+2, 
+                        year, 
+                        ".csv")))
+  
+dc_weather <- read.csv("/Users/Stefano_1/Documents/CMU/Perspectives/Project/Data/dc_weather.csv")
+dc_weather <- dc_weather[,-1]
+
+data$year <- year
+data <- data %>% 
+  left_join(dc_weather,
+            by = c("year", "month", "day"))
+```
+
+
+```{r}
+data$perc_cap <- data$availability/data$capacity
+data$perc_cap <- ifelse(data$perc_cap<0, 0,
+                        ifelse(data$perc_cap>1, 1, data$perc_cap))
+data$clasif <- factor(ifelse(data$perc_cap < 0.2, 1,
+                      ifelse(data$perc_cap>0.8,3,2)))
+```
+
+```{r}
+data <- data %>% filter(!is.na(perc_cap))
+set.seed(1604)
+data_split <- data %>%  initial_split(prop = 0.8)
+training <- data_split %>% training()
+testin <- data_split %>% testing()
+```
+
+
+```{r}
+training$Station <- as.factor(training$Station)
+training$zip <- as.factor(training$zip)
+training$activity_clasif <- as.factor(training$activity_clasif)
+all_model <- multinom_reg(mode = "classification",
+                          engine = "glmnet",
+                          mixture = 0,
+                          penalty = 1) %>% 
+  fit(clasif~ Station + zip + weekday  + month +  hour + activity_clasif +  tmax + prcp, data = training)
+
+all_predictions <- training%>% 
+  bind_cols(
+    predict(all_model, new_data = training, type = "class")
+  ) %>% 
+  rename(predicted_clasif = .pred_class)
+
+accuracy(all_predictions, clasif, predicted_clasif)
+
+```
+
+```{r}
+testin$Station <- as.factor(testin$Station)
+testin$zip <- as.factor(testin$zip)
+testin$activity_clasif <- as.factor(testin$activity_clasif)
+all_predictions <- testin%>% 
+  bind_cols(
+    predict(all_model, new_data = testin, type = "class")
+  ) %>% 
+  rename(predicted_clasif = .pred_class)
+
+accuracy(all_predictions, clasif, predicted_clasif)
+```
+
+
+
+
+
